@@ -1,0 +1,64 @@
+name: Push Helm Chart to ACR
+
+on:
+  workflow_dispatch:
+    inputs:
+      chart-version:
+        description: 'Helm chart version to use'
+        required: false
+        default: '0.1.0'
+        type: string
+
+env:
+  CHART_NAME: bed-and-breakfast
+  CHART_PATH: ./bb-chart
+
+jobs:
+  push-helm-chart:
+    name: Package and Push Helm Chart
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout source code 
+        uses: actions/checkout@v3
+
+      - name: Azure login
+        uses: azure/login@v1.4.3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4.3.0
+        with:
+          version: 'latest'
+
+      - name: Log in to ACR with Helm
+        run: |
+          echo ${{ secrets.service_principal_password }} | helm registry login ${{ secrets.registry }} \
+            --username ${{ secrets.service_principal }} \
+            --password-stdin
+
+      - name: Update Chart version
+        if: ${{ github.event.inputs.chart-version != '' }}
+        run: |
+          sed -i "s/^version:.*/version: ${{ github.event.inputs.chart-version }}/" ${{ env.CHART_PATH }}/Chart.yaml
+
+      - name: Package Helm chart
+        run: |
+          helm package ${{ env.CHART_PATH }}
+
+      - name: Push Helm chart to ACR
+        run: |
+          CHART_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+          helm push ${{ env.CHART_NAME }}-${CHART_VERSION}.tgz oci://${{ secrets.registry }}/helm
+
+      - name: Logout from ACR
+        if: always()
+        run: |
+          helm registry logout ${{ secrets.registry }}
+
+      - name: Display completion message
+        run: |
+          CHART_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
+          echo "✅ Helm chart ${{ env.CHART_NAME }}:${CHART_VERSION} successfully pushed to ACR"
+          echo "📦 Chart location: oci://${{ secrets.registry }}/helm/${{ env.CHART_NAME }}"
