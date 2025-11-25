@@ -1,2 +1,14 @@
-# Bed-and-breakfast-gh-actions
-Demo project Nonna Rosanna - Bed &amp; Breakfast, released with helm in kubernetes using GitHub Actions
+# Bed and Breakfast
+
+## Useful commands
+```bash
+$NS = "bed-and-breakfast"
+$NAME = "bed-and-breakfast"
+helm list -n $NS
+
+helm history $NAME --namespace $NS
+
+helm rollback $NAME 1 --namespace $NS
+
+helm uninstall $NAME --namespace $NS
+```
