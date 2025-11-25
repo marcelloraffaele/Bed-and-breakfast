@@ -34,9 +34,9 @@ jobs:
 
       - name: Log in to ACR with Helm
         run: |
-          echo ${{ secrets.service_principal_password }} | helm registry login ${{ secrets.registry }} \
-            --username ${{ secrets.service_principal }} \
-            --password-stdin
+          az acr login --name $(echo "${{ secrets.registry }}" | cut -d'.' -f1)
+          TOKEN=$(az acr login --name $(echo "${{ secrets.registry }}" | cut -d'.' -f1) --expose-token --output tsv --query accessToken)
+          echo $TOKEN | helm registry login ${{ secrets.registry }} --username 00000000-0000-0000-0000-000000000000 --password-stdin
 
       - name: Update Chart version
         if: ${{ github.event.inputs.chart-version != '' }}
