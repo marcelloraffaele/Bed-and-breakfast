@@ -43,12 +43,12 @@ jobs:
 
       - name: Package Helm chart
         run: |
-          helm package ${{ env.CHART_PATH }}
+          helm package ${{ env.CHART_PATH }} -d .
 
       - name: Push Helm chart to ACR
         run: |
           CHART_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
-          helm push ${{ env.CHART_NAME }}-${CHART_VERSION}.tgz oci://${{ secrets.registry }}/helm
+          helm push ./${{ env.CHART_NAME }}-${CHART_VERSION}.tgz oci://${{ secrets.registry }}/helm
 
       - name: Logout from ACR
         if: always()
