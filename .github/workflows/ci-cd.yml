@@ -8,6 +8,7 @@ on:
       - '**'
       - '!*.md'
       - '!docs/**'
+      - '!.github/workflows/push-helm-chart.yml'
 
 env:
   K8S_NAMESPACE: bed-and-breakfast

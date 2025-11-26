@@ -32,16 +32,14 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Get ACR name
+      - name: Get ACR name and login
         id: acr-name
         run: |
           $acrName = "${{ secrets.registry }}" -replace '\.azurecr\.io$', ''
           echo "name=$acrName" >> $env:GITHUB_OUTPUT
+          echo "registry=${{ secrets.registry }}" >> $env:GITHUB_OUTPUT
+          az acr login --name $acrName
         shell: pwsh
-
-      - name: Login to ACR with Helm
-        run: |
-          az acr login --name ${{ steps.acr-name.outputs.name }}
 
       - name: Update chart version and package
         run: |
@@ -51,15 +49,15 @@ jobs:
 
       - name: Push Helm chart to ACR
         run: |
-          helm push ${{ github.workspace }}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
+          helm push ${{ github.workspace }}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ steps.acr-name.outputs.registry }}/helm
 
       - name: Logout from ACR
         if: always()
         run: |
-          helm registry logout ${{ secrets.registry }}
+          helm registry logout ${{ steps.acr-name.outputs.registry }}
+        shell: bash
 
       - name: Display completion message
         run: |
-          
           echo "✅ Helm chart ${{ env.CHART_NAME }}:${{ github.event.inputs.chart-version }} successfully pushed to ACR"
-          echo "📦 Chart location: oci://${{ secrets.registry }}/helm/${{ env.CHART_NAME }}"
+          echo "📦 Chart location: oci://${{ steps.acr-name.outputs.registry }}/helm/${{ env.CHART_NAME }}"
