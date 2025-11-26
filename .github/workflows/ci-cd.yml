@@ -69,6 +69,7 @@ jobs:
           cd ${{ github.workspace }}
           helm upgrade bed-and-breakfast ./bb-chart \
             --install \
+            --create-namespace \
             --namespace ${{ env.K8S_NAMESPACE }} \
             --set image.repository=${{ secrets.registry }}/${{ secrets.repository }} \
             --set image.tag=${{ needs.build.outputs.image-tag }} \
