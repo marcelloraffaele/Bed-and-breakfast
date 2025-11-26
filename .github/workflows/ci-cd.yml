@@ -66,6 +66,7 @@ jobs:
 
       - name: Deploy with Helm
         run: |
+          cd ${{ github.workspace }}
           helm upgrade bed-and-breakfast ./bb-chart \
             --install \
             --namespace ${{ env.K8S_NAMESPACE }} \
