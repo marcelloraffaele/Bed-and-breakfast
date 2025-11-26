@@ -71,7 +71,7 @@ jobs:
             --install \
             --create-namespace \
             --namespace ${{ env.K8S_NAMESPACE }} \
-            --set image.repository=${{ secrets.registry }}/${{ secrets.repository }} \
+            --set image.repository=${{ secrets.registry }}/${{ secrets.repository }}/bed-and-breakfast \
             --set image.tag=${{ needs.build.outputs.image-tag }} \
             --set ingress.enabled=true \
             --set ingress.className=webapprouting.kubernetes.azure.com \
