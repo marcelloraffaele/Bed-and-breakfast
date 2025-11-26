@@ -48,7 +48,7 @@ jobs:
       - name: Push Helm chart to ACR
         run: |
           
-          helm push ${{env.GITHUB_WORKSPACE}}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
+          helm push ${{ github.workspace }}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
 
       - name: Logout from ACR
         if: always()
