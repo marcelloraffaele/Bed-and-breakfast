@@ -64,6 +64,23 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Helm - dry run
+        run: |
+          cd ${{ github.workspace }}
+          helm upgrade bed-and-breakfast ./bb-chart \
+            --install \
+            --create-namespace \
+            --namespace ${{ env.K8S_NAMESPACE }} \
+            --set image.repository=${{ secrets.registry }}/${{ secrets.repository }}/bed-and-breakfast \
+            --set image.tag=${{ github.sha }} \
+            --set ingress.enabled=true \
+            --set ingress.className=webapprouting.kubernetes.azure.com \
+            --set ingress.hosts[0].host=bb.upskilling-aks.com \
+            --set ingress.hosts[0].paths[0].path=/ \
+            --set ingress.hosts[0].paths[0].pathType=ImplementationSpecific \
+            --set autoscaling.enabled=true \
+            --dry-run=true
+
       - name: Deploy with Helm
         run: |
           cd ${{ github.workspace }}
@@ -79,3 +96,4 @@ jobs:
             --set ingress.hosts[0].paths[0].path=/ \
             --set ingress.hosts[0].paths[0].pathType=ImplementationSpecific \
             --set autoscaling.enabled=true
+

@@ -41,9 +41,7 @@ jobs:
 
       - name: Login to ACR with Helm
         run: |
-          $token = az acr login --name ${{ steps.acr-name.outputs.name }} --expose-token --query accessToken -o tsv
-          echo $token | helm registry login ${{ secrets.registry }} --username 00000000-0000-0000-0000-000000000000 --password-stdin
-        shell: pwsh
+          az acr login --name ${{ steps.acr-name.outputs.name }}
 
       - name: Update chart version and package
         run: |
