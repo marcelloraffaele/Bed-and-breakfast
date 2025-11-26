@@ -35,9 +35,16 @@ jobs:
       - name: Get ACR name and login
         id: acr-name
         run: |
-          $acrName = "${{ secrets.registry }}" -replace '\.azurecr\.io$', ''
+          $registry = "${{ secrets.registry }}"
+          # Check if registry already has .azurecr.io suffix
+          if ($registry -notmatch '\.azurecr\.io$') {
+            $registry = "$registry.azurecr.io"
+          }
+          $acrName = $registry -replace '\.azurecr\.io$', ''
           echo "name=$acrName" >> $env:GITHUB_OUTPUT
-          echo "registry=${{ secrets.registry }}" >> $env:GITHUB_OUTPUT
+          echo "registry=$registry" >> $env:GITHUB_OUTPUT
+          Write-Host "ACR Name: $acrName"
+          Write-Host "Registry: $registry"
           az acr login --name $acrName
         shell: pwsh
 
