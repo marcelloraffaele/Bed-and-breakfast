@@ -10,7 +10,7 @@ on:
         type: string
 
 env:
-  CHART_NAME: bed-and-breakfast
+  CHART_NAME: bb-chart
   CHART_PATH: ./bb-chart
 
 jobs:
