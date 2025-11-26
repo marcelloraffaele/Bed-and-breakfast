@@ -47,8 +47,8 @@ jobs:
 
       - name: Push Helm chart to ACR
         run: |
-          CHART_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
-          helm push ${{env.GITHUB_WORKSPACE}}/${{ env.CHART_NAME }}-${CHART_VERSION}.tgz oci://${{ secrets.registry }}/helm
+          
+          helm push ${{env.GITHUB_WORKSPACE}}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
 
       - name: Logout from ACR
         if: always()
@@ -57,6 +57,6 @@ jobs:
 
       - name: Display completion message
         run: |
-          CHART_VERSION=$(grep '^version:' ${{ env.CHART_PATH }}/Chart.yaml | awk '{print $2}')
-          echo "✅ Helm chart ${{ env.CHART_NAME }}:${CHART_VERSION} successfully pushed to ACR"
+          
+          echo "✅ Helm chart ${{ env.CHART_NAME }}:${{ github.event.inputs.chart-version }} successfully pushed to ACR"
           echo "📦 Chart location: oci://${{ secrets.registry }}/helm/${{ env.CHART_NAME }}"
