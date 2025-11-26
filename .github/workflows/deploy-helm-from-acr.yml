@@ -1,0 +1,129 @@
+name: Deploy Helm Chart from ACR to AKS
+
+on:
+  workflow_dispatch:
+    inputs:
+      chart-version:
+        description: 'Helm chart version to deploy'
+        required: true
+        default: '0.1.0'
+        type: string
+      image-tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to deploy to'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+
+env:
+  CHART_NAME: bb-chart
+  K8S_NAMESPACE: bed-and-breakfast
+
+jobs:
+  deploy-from-acr:
+    name: Pull and Deploy Helm Chart from ACR
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: '${{ secrets.resource_group }}' 
+          cluster-name: '${{ secrets.cluster_name }}'
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4.3.0
+        with:
+          version: 'latest'
+
+      - name: Get ACR name and login
+        id: acr-name
+        run: |
+          $registry = "${{ secrets.registry }}"
+          # Check if registry already has .azurecr.io suffix
+          if ($registry -notmatch '\.azurecr\.io$') {
+            $registry = "$registry.azurecr.io"
+          }
+          $acrName = $registry -replace '\.azurecr\.io$', ''
+          echo "name=$acrName" >> $env:GITHUB_OUTPUT
+          echo "registry=$registry" >> $env:GITHUB_OUTPUT
+          Write-Host "ACR Name: $acrName"
+          Write-Host "Registry: $registry"
+          az acr login --name $acrName
+        shell: pwsh
+
+      - name: Login to ACR with Helm
+        run: |
+          $token = az acr login --name ${{ steps.acr-name.outputs.name }} --expose-token --output tsv --query accessToken
+          echo $token | helm registry login ${{ steps.acr-name.outputs.registry }} --username 00000000-0000-0000-0000-000000000000 --password-stdin
+        shell: pwsh
+
+      - name: Pull Helm chart from ACR
+        run: |
+          helm pull oci://${{ steps.acr-name.outputs.registry }}/helm/${{ env.CHART_NAME }} --version ${{ github.event.inputs.chart-version }}
+          Write-Host "✅ Successfully pulled chart: ${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz"
+        shell: pwsh
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade bed-and-breakfast ./${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz \
+            --install \
+            --create-namespace \
+            --namespace ${{ env.K8S_NAMESPACE }} \
+            --set image.repository=${{ secrets.registry }}.azurecr.io/${{ secrets.repository }}/bed-and-breakfast \
+            --set image.tag=${{ github.event.inputs.image-tag }} \
+            --set image.pullPolicy=Always \
+            --set replicaCount=2 \
+            --set ingress.enabled=true \
+            --set ingress.className=webapprouting.kubernetes.azure.com \
+            --set ingress.hosts[0].host=bb.upskilling-aks.com \
+            --set ingress.hosts[0].paths[0].path=/ \
+            --set ingress.hosts[0].paths[0].pathType=ImplementationSpecific \
+            --set autoscaling.enabled=true \
+            --set autoscaling.minReplicas=2 \
+            --set autoscaling.maxReplicas=10 \
+            --set autoscaling.targetCPUUtilizationPercentage=80 \
+            --set resources.limits.cpu=500m \
+            --set resources.limits.memory=512Mi \
+            --set resources.requests.cpu=250m \
+            --set resources.requests.memory=256Mi \
+            --wait \
+            --timeout 5m
+
+      - name: Verify deployment
+        run: |
+          Write-Host "📋 Deployment Status:"
+          kubectl get deployments -n ${{ env.K8S_NAMESPACE }}
+          Write-Host "`n📦 Pods:"
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }}
+          Write-Host "`n🌐 Services:"
+          kubectl get services -n ${{ env.K8S_NAMESPACE }}
+          Write-Host "`n🔗 Ingress:"
+          kubectl get ingress -n ${{ env.K8S_NAMESPACE }}
+        shell: pwsh
+
+      - name: Logout from ACR
+        if: always()
+        run: |
+          helm registry logout ${{ steps.acr-name.outputs.registry }}
+        shell: bash
+
+      - name: Display completion message
+        run: |
+          Write-Host "✅ Successfully deployed Helm chart ${{ env.CHART_NAME }}:${{ github.event.inputs.chart-version }}"
+          Write-Host "🐳 Image: ${{ secrets.registry }}.azurecr.io/${{ secrets.repository }}/bed-and-breakfast:${{ github.event.inputs.image-tag }}"
+          Write-Host "🎯 Environment: ${{ github.event.inputs.environment }}"
+          Write-Host "🌐 URL: http://bb.upskilling-aks.com"
+        shell: pwsh
