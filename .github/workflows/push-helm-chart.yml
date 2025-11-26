@@ -32,15 +32,28 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Azure CLI script
-        uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az acr login --name $(echo "${{ secrets.registry }}" | cut -d'.' -f1) --expose-token
-            sed -i "s/^version:.*/version: ${{ github.event.inputs.chart-version }}/" ${{ env.CHART_PATH }}/Chart.yaml
-            helm package ${{ env.CHART_PATH }} -d .
-            helm push ${{ github.workspace }}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
+      - name: Get ACR name
+        id: acr-name
+        run: |
+          $acrName = "${{ secrets.registry }}" -replace '\.azurecr\.io$', ''
+          echo "name=$acrName" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Login to ACR with Helm
+        run: |
+          $token = az acr login --name ${{ steps.acr-name.outputs.name }} --expose-token --query accessToken -o tsv
+          echo $token | helm registry login ${{ secrets.registry }} --username 00000000-0000-0000-0000-000000000000 --password-stdin
+        shell: pwsh
+
+      - name: Update chart version and package
+        run: |
+          (Get-Content ${{ env.CHART_PATH }}/Chart.yaml) -replace '^version:.*', "version: ${{ github.event.inputs.chart-version }}" | Set-Content ${{ env.CHART_PATH }}/Chart.yaml
+          helm package ${{ env.CHART_PATH }} -d .
+        shell: pwsh
+
+      - name: Push Helm chart to ACR
+        run: |
+          helm push ${{ github.workspace }}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
 
       - name: Logout from ACR
         if: always()
