@@ -37,7 +37,7 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
-            az acr login --name $(echo "${{ secrets.registry }}" | cut -d'.' -f1)
+            az acr login --name $(echo "${{ secrets.registry }}" | cut -d'.' -f1) --expose-token
             sed -i "s/^version:.*/version: ${{ github.event.inputs.chart-version }}/" ${{ env.CHART_PATH }}/Chart.yaml
             helm package ${{ env.CHART_PATH }} -d .
             helm push ${{ github.workspace }}/${{ env.CHART_NAME }}-${{ github.event.inputs.chart-version }}.tgz oci://${{ secrets.registry }}/helm
